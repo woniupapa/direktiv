@@ -7,7 +7,6 @@ NC='\033[0m' # No Color
 NL=$'\n'
 
 DIREKTION=$HOME/go/src/github.com/vorteil/direktion/build/direktion
-DIREKCLI=$HOME/go/src/github.com/vorteil/direktiv/build/direkcli
 DIREKTIV_API="http://localhost:80"
 NAMESPACE=test
 
@@ -30,13 +29,23 @@ compile_script () {
 		return $status
 	fi
 
-	# TODO: fix create/update cli side?
+	# upload
 	tmp="/tmp/test-workflow.yaml"
 	echo "$wf" > $tmp
-	$DIREKCLI --url=$DIREKTIV_API workflows create $NAMESPACE $tmp
+
+	resp=`curl -s -S -X POST $DIREKTIV_API/api/namespaces/$NAMESPACE/workflows -H "Content-Type: text/yaml" --data-binary "@$tmp"`
 	status=$?
-	rm $tmp
+	
 	if [ $status -ne 0 ]; then return $status; fi
+
+	id=`echo "$resp" | jq -r ".id"`
+	resp=`curl -s -S -X PUT $DIREKTIV_API/api/namespaces/$NAMESPACE/workflows/$id?logEvent=$id -H "Content-Type: text/yaml" --data-binary "@$tmp"`
+	status=$?
+
+	if [ $status -ne 0 ]; then return $status; fi
+
+	rm $tmp
+
 
 }
 
@@ -57,7 +66,17 @@ compile_scripts () {
 }
 
 wipe_namespace () {
-	# TODO: fix cli to output machine-readable stuff for scripting
+
+	# wipe workflows 
+	resp=`curl -s -S -X GET $DIREKTIV_API/api/namespaces/$NAMESPACE/workflows/`
+	workflows=`echo "$resp" | jq -r '.workflows[].id' 2>/dev/null`
+	status=$?
+	if [ $status -eq 0 ]; then 
+		for workflow in $workflows; do
+			resp=`curl -s -S -X DELETE $DIREKTIV_API/api/namespaces/$NAMESPACE/workflows/$workflow`
+		done
+	fi
+
 	return 0
 }
 
@@ -72,10 +91,15 @@ perform_test () {
 	status=$?
 	if [ $status -ne 0 ]; then return $status; fi
 
-	# TODO: fix direkcli to support the wait query param
-	$DIREKCLI --url=$DIREKTIV_API workflows execute $NAMESPACE "test"
-	status=$?
-	if [ $status -ne 0 ]; then return $status; fi
+	resp=`curl -I -s -S -X GET $DIREKTIV_API/api/namespaces/$NAMESPACE/workflows/test/execute?wait=true`
+	code=`echo "$resp" | head -1 | cut -f2 -d" "`
+
+	if [ $code -ne 200 ] ; then
+		echo "  test workflow returned unsuccessful status code: $code"
+		return 1
+	else 
+		return 0
+	fi
 
 }
 
@@ -116,14 +140,28 @@ perform_individual_tests () {
 
 init_namespace () {
 
-	# TODO: fix existing namespace error on cli-side?
-	# $DIREKCLI --url=$DIREKTIV_API namespaces create $NAMESPACE
-	# status=$?
-	# if [ $status -ne 0 ]; then return $status; fi
+	resp=`curl -I -s -S -X POST $DIREKTIV_API/api/namespaces/$NAMESPACE`
+	code=`echo "$resp" | head -1 | cut -f2 -d" "`
 
-	return 0
+	if [ $code -ne 409 ] && [ $code -ne 200 ]; then
+		echo "$resp"
+		return 1
+	else 
+		echo "Created namespace: $NAMESPACE"
+		return 0
+	fi
+
+	wipe_namespace
+	status=$?
+
+	return $status
 
 }
+
+if [ "$1" = "" ]; then 
+	echo "usage: $0 TESTSUITE_DIR [TESTNAME]..."
+	exit 1
+fi
 
 init_namespace
 status=$?
