@@ -8,7 +8,8 @@ NL=$'\n'
 
 DIREKTION=$HOME/go/src/github.com/vorteil/direktion/build/direktion
 DIREKCLI=$HOME/go/src/github.com/vorteil/direktiv/build/direkcli
-DIREKTIV_API="localhost:80"
+DIREKTIV_API="http://localhost:80"
+NAMESPACE=test
 
 suite_dir=${1%/}
 
@@ -29,7 +30,13 @@ compile_script () {
 		return $status
 	fi
 
-	# TODO: upload workflow
+	# TODO: fix create/update cli side?
+	tmp="/tmp/test-workflow.yaml"
+	echo "$wf" > $tmp
+	$DIREKCLI --url=$DIREKTIV_API workflows create $NAMESPACE $tmp
+	status=$?
+	rm $tmp
+	if [ $status -ne 0 ]; then return $status; fi
 
 }
 
@@ -49,16 +56,26 @@ compile_scripts () {
 
 }
 
+wipe_namespace () {
+	# TODO: fix cli to output machine-readable stuff for scripting
+	return 0
+}
+
 perform_test () {
 	test=$1
 
 	if [ ! -d "$test" ]; then echo -e "  ${RED}error${NC} no directory for test: $test"; return 1; fi
 
+	wipe_namespace
+
 	compile_scripts $test
 	status=$?
 	if [ $status -ne 0 ]; then return $status; fi
 
-	# TODO: trigger test workflow
+	# TODO: fix direkcli to support the wait query param
+	$DIREKCLI --url=$DIREKTIV_API workflows execute $NAMESPACE "test"
+	status=$?
+	if [ $status -ne 0 ]; then return $status; fi
 
 }
 
@@ -96,6 +113,21 @@ perform_individual_tests () {
 		report_results $status
 	done
 }
+
+init_namespace () {
+
+	# TODO: fix existing namespace error on cli-side?
+	# $DIREKCLI --url=$DIREKTIV_API namespaces create $NAMESPACE
+	# status=$?
+	# if [ $status -ne 0 ]; then return $status; fi
+
+	return 0
+
+}
+
+init_namespace
+status=$?
+if [ $status -ne 0 ]; then exit $status; fi
 
 perform_individual_tests
 
