@@ -9,12 +9,13 @@ import "pkg/isolates/grpc/isolates-common.proto";
 message IsolateInfo {
 	optional BaseInfo info = 1;
 	optional string status = 2;
-	optional string statusMessage = 3;
+	repeated Condition conditions = 3;
 	optional string serviceName = 4;
 }
 
 message ListIsolatesResponse {
-	repeated IsolateInfo isolates = 1;
+	optional IsolateConfig config = 1;
+	repeated IsolateInfo isolates = 2;
 }
 
 message ListIsolatesRequest {

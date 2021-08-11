@@ -14,3 +14,14 @@ message BaseInfo {
 	optional int32 size = 6;
 	optional int32 minScale = 7;
 }
+
+message Condition {
+	optional string name = 1;
+	optional string status = 2;
+	optional string reason = 3;
+	optional string message = 4;
+}
+
+message IsolateConfig {
+	optional int32 maxscale = 1;
+}
