@@ -167,7 +167,7 @@ init_namespace
 status=$?
 if [ $status -ne 0 ]; then exit $status; fi
 
-perform_individual_tests
+perform_individual_tests $@
 
 if [ $individuals -eq 0 ]; then 
 	perform_tests
