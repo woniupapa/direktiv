@@ -11,10 +11,11 @@ message AddWorkflowRequest {
 	optional bool active = 2;
 	optional bytes workflow = 3;
 	optional string logToEvents = 4;
+	optional string id = 5;
 }
 
 message AddWorkflowResponse {
-	optional string uid = 1;
+	// optional string uid = 1;
 	optional string id = 2;
 	optional int32 revision = 3;
 	optional bool active = 4;

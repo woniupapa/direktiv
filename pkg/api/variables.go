@@ -20,17 +20,12 @@ func (h *Handler) workflowVariables(w http.ResponseWriter, r *http.Request) {
 	ns := mux.Vars(r)["namespace"]
 	name := mux.Vars(r)["workflowTarget"]
 
-	uid, err := h.getUIDforName(r.Context(), ns, name)
-	if err != nil {
-		ErrResponse(w, err)
-		return
-	}
-
 	ctx, cancel := CtxDeadline(r.Context())
 	defer cancel()
 
 	resp, err := h.s.direktiv.ListWorkflowVariables(ctx, &ingress.ListWorkflowVariablesRequest{
-		WorkflowUid: &uid,
+		Namespace: &ns,
+		Name:      &name,
 	})
 	if err != nil {
 		ErrResponse(w, err)
@@ -45,12 +40,6 @@ func (h *Handler) setWorkflowVariable(w http.ResponseWriter, r *http.Request) {
 	ns := mux.Vars(r)["namespace"]
 	name := mux.Vars(r)["workflowTarget"]
 	wfVar := mux.Vars(r)["variable"]
-
-	uid, err := h.getUIDforName(r.Context(), ns, name)
-	if err != nil {
-		ErrResponse(w, err)
-		return
-	}
 
 	ctx, cancel := CtxDeadline(r.Context())
 	defer cancel()
@@ -96,7 +85,8 @@ func (h *Handler) setWorkflowVariable(w http.ResponseWriter, r *http.Request) {
 		data := buf.Bytes()
 
 		req := new(ingress.SetWorkflowVariableRequest)
-		req.WorkflowUid = &uid
+		req.Namespace = &ns
+		req.Name = &name
 		req.Key = &wfVar
 		req.Value = data
 		req.TotalSize = &totalSize
@@ -138,18 +128,13 @@ func (h *Handler) getWorkflowVariable(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["workflowTarget"]
 	wfVar := mux.Vars(r)["variable"]
 
-	uid, err := h.getUIDforName(r.Context(), ns, name)
-	if err != nil {
-		ErrResponse(w, err)
-		return
-	}
-
 	ctx, cancel := CtxDeadline(r.Context())
 	defer cancel()
 
 	client, err := h.s.direktiv.GetWorkflowVariable(ctx, &ingress.GetWorkflowVariableRequest{
-		WorkflowUid: &uid,
-		Key:         &wfVar,
+		Namespace: &ns,
+		Name:      &name,
+		Key:       &wfVar,
 	})
 	if err != nil {
 		ErrResponse(w, err)

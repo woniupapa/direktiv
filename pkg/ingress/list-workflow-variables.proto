@@ -5,7 +5,9 @@ package ingress;
 option go_package = "github.com/vorteil/direktiv/pkg/ingress";
 
 message ListWorkflowVariablesRequest {
-	optional string workflowUid = 1;
+	// optional string workflowUid = 1;
+	optional string namespace = 2;
+	optional string name = 3;
 }
 
 message ListWorkflowVariablesResponse {

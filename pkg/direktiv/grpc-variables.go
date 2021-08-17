@@ -169,10 +169,8 @@ func (is *ingressServer) SetWorkflowVariable(srv ingress.DirektivIngress_SetWork
 		return err
 	}
 
-	workflow := in.GetWorkflowUid()
-	if workflow == "" {
-		return errors.New("required workflow uid")
-	}
+	ns := in.GetNamespace()
+	name := in.GetName()
 
 	key := in.GetKey()
 	if key == "" {
@@ -181,7 +179,7 @@ func (is *ingressServer) SetWorkflowVariable(srv ingress.DirektivIngress_SetWork
 
 	totalSize := in.GetTotalSize()
 
-	wf, err := is.wfServer.dbManager.getWorkflowByUid(ctx, workflow)
+	wf, err := is.wfServer.dbManager.getWorkflowByName(ctx, ns, name)
 	if err != nil {
 		return err
 	}
@@ -234,24 +232,15 @@ func (is *ingressServer) GetWorkflowVariable(in *ingress.GetWorkflowVariableRequ
 
 	ctx := out.Context()
 
-	workflow := in.GetWorkflowUid()
-	if workflow == "" {
-		return errors.New("required workflow uid")
-	}
+	ns := in.GetNamespace()
+	name := in.GetName()
 
 	key := in.GetKey()
 	if key == "" {
 		return errors.New("requires variable key")
 	}
 
-	wf, err := is.wfServer.dbManager.getWorkflowByUid(ctx, workflow)
-	if err != nil {
-		return err
-	}
-
-	ns := wf.Edges.Namespace
-
-	r, err := is.wfServer.variableStorage.Retrieve(ctx, key, ns.ID, workflow)
+	r, err := is.wfServer.variableStorage.Retrieve(ctx, key, ns, name)
 	if err != nil {
 		return err
 	}
@@ -294,19 +283,10 @@ func (is *ingressServer) ListWorkflowVariables(ctx context.Context, in *ingress.
 
 	resp := new(ingress.ListWorkflowVariablesResponse)
 
-	workflow := in.GetWorkflowUid()
-	if workflow == "" {
-		return nil, errors.New("required workflow uid")
-	}
+	ns := in.GetNamespace()
+	name := in.GetName()
 
-	wf, err := is.wfServer.dbManager.getWorkflowByUid(ctx, workflow)
-	if err != nil {
-		return nil, err
-	}
-
-	ns := wf.Edges.Namespace
-
-	list, err := is.wfServer.variableStorage.List(ctx, ns.ID, workflow)
+	list, err := is.wfServer.variableStorage.List(ctx, ns, name)
 	if err != nil {
 		return nil, err
 	}

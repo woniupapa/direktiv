@@ -5,9 +5,13 @@ package ingress;
 option go_package = "github.com/vorteil/direktiv/pkg/ingress";
 
 message DeleteWorkflowRequest {
-	optional string uid = 1;
+	// optional string uid = 1;
+	optional string namespace = 2;
+	optional string name = 3;
 }
 
 message DeleteWorkflowResponse {
-	optional string uid = 1;
+	// optional string uid = 1;
+	optional string namespace = 2;
+	optional string name = 3;
 }

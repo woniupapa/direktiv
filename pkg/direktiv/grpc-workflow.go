@@ -65,7 +65,6 @@ func (is *ingressServer) AddWorkflow(ctx context.Context, in *ingress.AddWorkflo
 
 	log.Debugf("Added workflow %s/%s: %s", namespace, workflow.ID, uid)
 
-	resp.Uid = &uid
 	resp.Id = &wf.Name
 	resp.Revision = &revision
 	resp.Active = &wf.Active
@@ -80,21 +79,16 @@ func (is *ingressServer) DeleteWorkflow(ctx context.Context, in *ingress.DeleteW
 	var (
 		resp ingress.DeleteWorkflowResponse
 	)
-	uid := in.GetUid()
 
-	err := is.wfServer.dbManager.deleteWorkflow(ctx, uid)
+	ns := in.GetNamespace()
+	name := in.GetName()
+
+	err := is.wfServer.dbManager.deleteWorkflow(ctx, ns, name)
 	if err != nil {
-		return nil, grpcDatabaseError(err, "workflow", uid)
+		return nil, grpcDatabaseError(err, "workflow", name)
 	}
 
-	err = is.wfServer.tmManager.deleteTimerByName("", "", fmt.Sprintf("cron:%s", uid))
-	if err != nil {
-		log.Error(err)
-	}
-
-	log.Debugf("Deleted workflow: %s", uid)
-
-	resp.Uid = &uid
+	log.Debugf("Deleted workflow: %s", name)
 
 	return &resp, nil
 
@@ -176,7 +170,8 @@ func (is *ingressServer) UpdateWorkflow(ctx context.Context, in *ingress.UpdateW
 		workflow, workflowPrev model.Workflow
 	)
 
-	uid := in.GetUid()
+	ns := in.GetNamespace()
+	name := in.GetName()
 
 	document := in.GetWorkflow()
 	err := workflow.Load(document)
@@ -194,22 +189,22 @@ func (is *ingressServer) UpdateWorkflow(ctx context.Context, in *ingress.UpdateW
 	// knative services per workflow have no revisions, we delete and recreate them
 	// we need to get the checksum for the functions of the workflow
 	// and used it top compare against the new version.
-	fwf, _ := is.wfServer.dbManager.getWorkflowByUid(ctx, uid)
+	fwf, _ := is.wfServer.dbManager.getWorkflowByName(ctx, ns, name)
 	if fwf != nil {
 
 		// previous definition. can not have errors
-		workflowPrev.Load(fwf.Workflow)
+		_ = workflowPrev.Load(fwf.Workflow)
 
 		// if the functyions have changed or the workflow has been renamed
-		if workflowPrev.ID != workflow.ID ||
-			hashForFunctions(workflow) != hashForFunctions(workflowPrev) {
+		if // workflowPrev.ID != workflow.ID ||
+		hashForFunctions(workflow) != hashForFunctions(workflowPrev) {
 
 			log.Debugf("recreating knative workflows")
-			err = deleteKnativeFunctions(is.wfServer.engine.functionsClient, fwf.Edges.Namespace.ID, workflowPrev.ID, "")
+			err = deleteKnativeFunctions(is.wfServer.engine.functionsClient, ns, name, "")
 			if err != nil {
 				log.Errorf("can not delete knative functions: %v", err)
 			}
-			err = createKnativeFunctions(is.wfServer.engine.functionsClient, workflow, fwf.Edges.Namespace.ID)
+			err = createKnativeFunctions(is.wfServer.engine.functionsClient, workflow, ns)
 			if err != nil {
 				log.Errorf("can not create knative functions: %v", err)
 			}
@@ -217,7 +212,9 @@ func (is *ingressServer) UpdateWorkflow(ctx context.Context, in *ingress.UpdateW
 
 	}
 
-	wf, err := is.wfServer.dbManager.updateWorkflow(ctx, uid, checkRevision, workflow.ID,
+	uid := fwf.ID.String()
+
+	wf, err := is.wfServer.dbManager.updateWorkflow(ctx, uid, checkRevision, name,
 		workflow.Description, in.Active, in.LogToEvents, document, workflow.GetStartDefinition())
 	if err != nil {
 		return nil, grpcDatabaseError(err, "workflow", workflow.ID)
@@ -234,9 +231,8 @@ func (is *ingressServer) UpdateWorkflow(ctx context.Context, in *ingress.UpdateW
 
 	revision := int32(wf.Revision)
 
-	log.Debugf("Updated workflow: %s", uid)
+	log.Debugf("Updated workflow: %s/%s", ns, name)
 
-	resp.Uid = &uid
 	resp.Id = &wf.Name
 	resp.Revision = &revision
 	resp.Active = &wf.Active
@@ -272,11 +268,11 @@ func (is *ingressServer) GetWorkflows(ctx context.Context, in *ingress.GetWorkfl
 
 	for _, wf := range workflows {
 
-		uid := wf.ID.String()
+		// uid := wf.ID.String()
 		revision := int32(wf.Revision)
 
 		resp.Workflows = append(resp.Workflows, &ingress.GetWorkflowsResponse_Workflow{
-			Uid:         &uid,
+			// Uid:         &uid,
 			Id:          &wf.Name,
 			Revision:    &revision,
 			Description: &wf.Description,
@@ -306,7 +302,6 @@ func (is *ingressServer) GetWorkflowByName(ctx context.Context, in *ingress.GetW
 	uid := wf.ID.String()
 	revision := int32(wf.Revision)
 
-	resp.Uid = &uid
 	resp.Name = &wf.Name
 	resp.Revision = &revision
 	resp.Active = &wf.Active
@@ -342,66 +337,6 @@ func (is *ingressServer) GetWorkflowByName(ctx context.Context, in *ingress.GetW
 
 		for i := range varRefs {
 			resp.References.Variables = append(resp.References.Variables, &ingress.GetWorkflowByNameResponse_References_Variable{
-				Key:        &varRefs[i].Key,
-				Scope:      &varRefs[i].Scope,
-				Operations: varRefs[i].Operation,
-			})
-		}
-	}
-
-	return &resp, nil
-
-}
-
-func (is *ingressServer) GetWorkflowByUid(ctx context.Context, in *ingress.GetWorkflowByUidRequest) (*ingress.GetWorkflowByUidResponse, error) {
-
-	var resp ingress.GetWorkflowByUidResponse
-
-	uid := in.GetUid()
-
-	wf, err := is.wfServer.dbManager.getWorkflowByUid(ctx, uid)
-	if err != nil {
-		return nil, grpcDatabaseError(err, "workflow", uid)
-	}
-
-	revision := int32(wf.Revision)
-
-	resp.Uid = &uid
-	resp.Id = &wf.Name
-	resp.Revision = &revision
-	resp.Active = &wf.Active
-	resp.CreatedAt = timestamppb.New(wf.Created)
-	resp.Description = &wf.Description
-	resp.Workflow = wf.Workflow
-	resp.LogToEvents = &wf.LogToEvents
-
-	// get secrets and var references
-	if in.GetGetReferences() {
-		resp.References = &ingress.GetWorkflowByUidResponse_References{
-			Secrets:   make([]*ingress.GetWorkflowByUidResponse_References_Secret, 0),
-			Variables: make([]*ingress.GetWorkflowByUidResponse_References_Variable, 0),
-		}
-
-		// Load workflow
-		var workflow model.Workflow
-		err := workflow.Load(wf.Workflow)
-		if err != nil {
-			return nil, grpcDatabaseError(fmt.Errorf("invalid: %w", err), "workflow", uid)
-		}
-
-		// Get References
-		secretRefs := workflow.GetSecretReferences()
-		varRefs := workflow.GetVariableReferences()
-
-		// Set References
-		for i := range secretRefs {
-			resp.References.Secrets = append(resp.References.Secrets, &ingress.GetWorkflowByUidResponse_References_Secret{
-				Key: &secretRefs[i],
-			})
-		}
-
-		for i := range varRefs {
-			resp.References.Variables = append(resp.References.Variables, &ingress.GetWorkflowByUidResponse_References_Variable{
 				Key:        &varRefs[i].Key,
 				Scope:      &varRefs[i].Scope,
 				Operations: varRefs[i].Operation,

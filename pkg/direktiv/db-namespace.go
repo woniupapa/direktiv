@@ -54,7 +54,7 @@ func (db *dbManager) deleteNamespace(ctx context.Context, name string) error {
 	}
 
 	for _, w := range wfs {
-		err := db.deleteWorkflow(ctx, w.ID.String())
+		err := db.deleteWorkflow(ctx, name, w.Name)
 		if err != nil {
 			log.Errorf("can not delete workflow %s from namespace %s", w.Name, name)
 		}

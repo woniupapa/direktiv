@@ -17,7 +17,6 @@ import "pkg/ingress/get-instances.proto";
 import "pkg/ingress/get-instances-by-workflow.proto";
 import "pkg/ingress/get-instance-logs.proto";
 import "pkg/ingress/get-workflow-name.proto";
-import "pkg/ingress/get-workflow-uid.proto";
 import "pkg/ingress/get-workflows.proto";
 import "pkg/ingress/invoke.proto";
 import "pkg/ingress/update-workflow.proto";
@@ -41,7 +40,6 @@ service DirektivIngress {
 	rpc AddWorkflow (AddWorkflowRequest) returns (AddWorkflowResponse) {}
 	rpc DeleteWorkflow (DeleteWorkflowRequest) returns (DeleteWorkflowResponse) {}
 	rpc GetWorkflowByName (GetWorkflowByNameRequest) returns (GetWorkflowByNameResponse) {}
-	rpc GetWorkflowByUid (GetWorkflowByUidRequest) returns (GetWorkflowByUidResponse) {}
 	rpc GetWorkflowInstance (GetWorkflowInstanceRequest) returns (GetWorkflowInstanceResponse) {}
 	rpc GetWorkflowInstances (GetWorkflowInstancesRequest) returns (GetWorkflowInstancesResponse) {}
 	rpc GetNamespaceLogs (GetNamespaceLogsRequest) returns (GetNamespaceLogsResponse) {}

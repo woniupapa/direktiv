@@ -107,25 +107,16 @@ func (db *dbManager) updateWorkflow(ctx context.Context, id string, revision *in
 
 }
 
-func (db *dbManager) deleteWorkflow(ctx context.Context, id string) error {
+func (db *dbManager) deleteWorkflow(ctx context.Context, ns, id string) error {
 
-	u, err := uuid.Parse(id)
+	wf, err := db.getWorkflowByName(ctx, ns, id)
 	if err != nil {
 		return err
 	}
-
-	wf, err := db.getWorkflowByUid(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	ns := wf.Edges.Namespace
 
 	// delete all event listeners and events
-	uid, err := uuid.Parse(id)
-	if err != nil {
-		return err
-	}
+	var uid uuid.UUID
+	uid = wf.ID
 
 	wfe, err := db.getWorkflowEventByWorkflowUID(uid)
 	if err == nil {
@@ -133,7 +124,7 @@ func (db *dbManager) deleteWorkflow(ctx context.Context, id string) error {
 	}
 
 	// delete all workflow instances
-	err = db.deleteWorkflowInstancesByWorkflow(ctx, u)
+	err = db.deleteWorkflowInstancesByWorkflow(ctx, uid)
 	if err != nil {
 		log.Errorf("can not delete workflow instances: %v", err)
 	}
@@ -145,7 +136,7 @@ func (db *dbManager) deleteWorkflow(ctx context.Context, id string) error {
 	}
 
 	i, err := db.dbEnt.Workflow.Delete().
-		Where(workflow.IDEQ(u)).
+		Where(workflow.IDEQ(uid)).
 		Exec(ctx)
 
 	if err != nil {
@@ -156,7 +147,7 @@ func (db *dbManager) deleteWorkflow(ctx context.Context, id string) error {
 		return fmt.Errorf("workflow with id %s does not exist", id)
 	}
 
-	err = (*db.varStorage).DeleteAllInScope(ctx, ns.ID, id)
+	err = (*db.varStorage).DeleteAllInScope(ctx, ns, id)
 	if err != nil {
 		return err
 	}

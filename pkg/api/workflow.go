@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -21,24 +20,6 @@ import (
 	"github.com/vorteil/direktiv/pkg/util"
 )
 
-func (h *Handler) getUIDforName(ctx context.Context, ns, name string) (string, error) {
-
-	ctx, cancel := CtxDeadline(ctx)
-	defer cancel()
-
-	resp, err := h.s.direktiv.GetWorkflowByName(ctx, &ingress.GetWorkflowByNameRequest{
-		Namespace: &ns,
-		Name:      &name,
-	})
-
-	if err != nil {
-		return "", err
-	}
-
-	return resp.GetUid(), nil
-
-}
-
 func (h *Handler) workflows(w http.ResponseWriter, r *http.Request) {
 
 	n := mux.Vars(r)["namespace"]
@@ -52,11 +33,6 @@ func (h *Handler) workflows(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		ErrResponse(w, err)
 		return
-	}
-
-	// wip uids
-	for _, t := range resp.Workflows {
-		t.Uid = nil
 	}
 
 	writeData(resp, w)
@@ -87,9 +63,6 @@ func (h *Handler) getWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// wipe uid
-	resp.Uid = nil
-
 	writeData(resp, w)
 
 }
@@ -98,12 +71,6 @@ func (h *Handler) updateWorkflow(w http.ResponseWriter, r *http.Request) {
 
 	ns := mux.Vars(r)["namespace"]
 	name := mux.Vars(r)["workflowTarget"]
-
-	uid, err := h.getUIDforName(r.Context(), ns, name)
-	if err != nil {
-		ErrResponse(w, err)
-		return
-	}
 
 	var useRevision bool
 	rev, err := strconv.Atoi(r.URL.Query().Get("revision"))
@@ -175,8 +142,9 @@ func (h *Handler) updateWorkflow(w http.ResponseWriter, r *http.Request) {
 
 	// Construct direktiv GRPC Request
 	request := ingress.UpdateWorkflowRequest{
-		Uid:      &uid,
-		Workflow: b,
+		Namespace: &ns,
+		Name:      &name,
+		Workflow:  b,
 	}
 
 	if useActive {
@@ -208,17 +176,12 @@ func (h *Handler) toggleWorkflow(w http.ResponseWriter, r *http.Request) {
 	ns := mux.Vars(r)["namespace"]
 	name := mux.Vars(r)["workflowTarget"]
 
-	uid, err := h.getUIDforName(r.Context(), ns, name)
-	if err != nil {
-		ErrResponse(w, err)
-		return
-	}
-
 	ctx, cancel := CtxDeadline(r.Context())
 	defer cancel()
 
-	resp, err := h.s.direktiv.GetWorkflowByUid(ctx, &ingress.GetWorkflowByUidRequest{
-		Uid: &uid,
+	resp, err := h.s.direktiv.GetWorkflowByName(ctx, &ingress.GetWorkflowByNameRequest{
+		Namespace: &ns,
+		Name:      &name,
 	})
 	if err != nil {
 		ErrResponse(w, err)
@@ -228,9 +191,10 @@ func (h *Handler) toggleWorkflow(w http.ResponseWriter, r *http.Request) {
 	active := !*resp.Active
 
 	resp2, err := h.s.direktiv.UpdateWorkflow(ctx, &ingress.UpdateWorkflowRequest{
-		Uid:      &uid,
-		Active:   &active,
-		Workflow: resp.Workflow,
+		Namespace: &ns,
+		Name:      &name,
+		Active:    &active,
+		Workflow:  resp.Workflow,
 	})
 	if err != nil {
 		ErrResponse(w, err)
@@ -294,9 +258,6 @@ func (h *Handler) createWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// empty UID which omits it
-	resp.Uid = nil
-
 	retData, err := json.Marshal(resp)
 	if err != nil {
 		ErrResponse(w, err)
@@ -314,17 +275,12 @@ func (h *Handler) deleteWorkflow(w http.ResponseWriter, r *http.Request) {
 	ns := mux.Vars(r)["namespace"]
 	name := mux.Vars(r)["workflowTarget"]
 
-	uid, err := h.getUIDforName(r.Context(), ns, name)
-	if err != nil {
-		ErrResponse(w, err)
-		return
-	}
-
 	ctx, cancel := CtxDeadline(r.Context())
 	defer cancel()
 
 	resp, err := h.s.direktiv.DeleteWorkflow(ctx, &ingress.DeleteWorkflowRequest{
-		Uid: &uid,
+		Namespace: &ns,
+		Name:      &name,
 	})
 	if err != nil {
 		ErrResponse(w, err)
@@ -340,24 +296,19 @@ func (h *Handler) downloadWorkflow(w http.ResponseWriter, r *http.Request) {
 	ns := mux.Vars(r)["namespace"]
 	name := mux.Vars(r)["workflowTarget"]
 
-	uid, err := h.getUIDforName(r.Context(), ns, name)
-	if err != nil {
-		ErrResponse(w, err)
-		return
-	}
-
 	ctx, cancel := CtxDeadline(r.Context())
 	defer cancel()
 
-	resp, err := h.s.direktiv.GetWorkflowByUid(ctx, &ingress.GetWorkflowByUidRequest{
-		Uid: &uid,
+	resp, err := h.s.direktiv.GetWorkflowByName(ctx, &ingress.GetWorkflowByNameRequest{
+		Namespace: &ns,
+		Name:      &name,
 	})
 	if err != nil {
 		ErrResponse(w, err)
 		return
 	}
 
-	w.Header().Set("Content-Disposition", "attachment; filename="+*resp.Id+".yaml")
+	w.Header().Set("Content-Disposition", "attachment; filename="+name+".yaml")
 	w.Header().Set("Content-Type", "application/x-yaml")
 
 	writeData(resp, w)
