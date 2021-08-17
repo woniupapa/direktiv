@@ -179,21 +179,13 @@ func (is *ingressServer) SetWorkflowVariable(srv ingress.DirektivIngress_SetWork
 
 	totalSize := in.GetTotalSize()
 
-	wf, err := is.wfServer.dbManager.getWorkflowByName(ctx, ns, name)
-	if err != nil {
-		return err
-	}
-
-	namespace := wf.Edges.Namespace.ID
-	wfId := wf.ID.String()
-
 	if totalSize == 0 {
-		err = is.wfServer.variableStorage.Delete(ctx, key, namespace, wfId)
+		err = is.wfServer.variableStorage.Delete(ctx, key, ns, name)
 		if err != nil {
 			return err
 		}
 	} else {
-		w, err := is.wfServer.variableStorage.Store(ctx, key, namespace, wfId)
+		w, err := is.wfServer.variableStorage.Store(ctx, key, ns, name)
 		if err != nil {
 			return err
 		}
