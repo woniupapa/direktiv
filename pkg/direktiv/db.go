@@ -53,8 +53,9 @@ func newDBManager(ctx context.Context, conn string, config *Config) (*dbManager,
 		ctx: ctx,
 	}
 
-	log.Debugf("connecting db")
+	log.Debugf("connecting db:%+v", conn)
 
+	// c, err := ent.Open(dialect.Postgres, "postgresql://<user>:<pass>@<host>/<database>")
 	db.dbEnt, err = ent.Open("postgres", conn)
 	if err != nil {
 		log.Errorf("can not connect to db: %v", err)
