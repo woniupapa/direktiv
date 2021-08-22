@@ -99,7 +99,7 @@ protoc:
 
 build/%-binary: Makefile ${GO_SOURCE_FILES}
 	@if [ -d "cmd/$*" ]; then \
-		echo "Building $* binary..."; \
+		echo "Building $* binary... $@ ${CGO_LDFLAGS} ${GO_BUILD_TAGS}"; \
 		export ${CGO_LDFLAGS} && go build -tags ${GO_BUILD_TAGS} -o $@ cmd/$*/*.go; \
 		cp build/$*-binary build/$*; \
 	else \
@@ -119,7 +119,7 @@ image-%: build/%-docker.checksum
 	@echo "Make $@: SUCCESS"
 
 RELEASE := ""
-RELEASE_TAG = "v0.1" #$(shell v='$${RELEASE:+:}$${RELEASE}'; echo "$${v%.*}")
+RELEASE_TAG = "v0.2" #$(shell v='$${RELEASE:+:}$${RELEASE}'; echo "$${v%.*}")
 
 .PHONY: push-%
 push-%: image-%
