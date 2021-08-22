@@ -177,6 +177,7 @@ func runRegistry(kc string) {
 		cmd.Run()
 	}()
 
+	log.Println("runRegistry")
 }
 
 func addProxy(f *os.File) {

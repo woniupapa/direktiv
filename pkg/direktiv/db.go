@@ -72,6 +72,8 @@ func newDBManager(ctx context.Context, conn string, config *Config) (*dbManager,
 		return nil, err
 	}
 
+	log.Debugf("created schema resources")
+
 	// increasing the version of the workflow by one
 	// can be used to lookup which workflow uses which revision
 	db.dbEnt.Workflow.Use(func(next ent.Mutator) ent.Mutator {

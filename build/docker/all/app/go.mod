@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/apoorvam/goterminal v0.0.0-20180523175556-614d345c47e5
+	github.com/mattn/go-isatty v0.0.13 // indirect
 	github.com/olekukonko/tablewriter v0.0.5
 	k8s.io/api v0.0.0-20210417155159-648b77825832
 	k8s.io/apimachinery v0.0.0-20210417144234-8daf28983e6e
