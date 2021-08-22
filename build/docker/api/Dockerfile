@@ -1,5 +1,8 @@
 FROM alpine:3.13.2
 
+RUN echo -e http://mirrors.ustc.edu.cn/alpine/v3.13/main/ >> /etc/apk/repositories
+
+
 COPY api /bin/server
 RUN chmod 755 /bin/server
 

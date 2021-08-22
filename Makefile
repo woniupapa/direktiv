@@ -2,7 +2,7 @@
 # # Makefile to build direktiv
 # #
 
-DOCKER_REPO := "localhost:5000"
+DOCKER_REPO := "registry.cn-shanghai.aliyuncs.com/yoyo-team/" #"localhost:5000"
 CGO_LDFLAGS := "CGO_LDFLAGS=\"-static -w -s\""
 GO_BUILD_TAGS := "osusergo,netgo"
 
@@ -119,12 +119,13 @@ image-%: build/%-docker.checksum
 	@echo "Make $@: SUCCESS"
 
 RELEASE := ""
-RELEASE_TAG = $(shell v='$${RELEASE:+:}$${RELEASE}'; echo "$${v%.*}")
+RELEASE_TAG = "v0.1" #$(shell v='$${RELEASE:+:}$${RELEASE}'; echo "$${v%.*}")
 
 .PHONY: push-%
 push-%: image-%
-	@docker tag direktiv-$* ${DOCKER_REPO}/$*${RELEASE_TAG}
-	@docker push ${DOCKER_REPO}/$*${RELEASE_TAG}
+	@echo "direktiv-$*:latest registry.cn-shanghai.aliyuncs.com/yoyo-team/$*:${RELEASE_TAG}"
+	@docker tag direktiv-$*:latest registry.cn-shanghai.aliyuncs.com/yoyo-team/$*:${RELEASE_TAG}
+	@docker push registry.cn-shanghai.aliyuncs.com/yoyo-team/$*:${RELEASE_TAG}
 	@echo "Make $@${RELEASE_TAG}: SUCCESS"
 
 # UI
@@ -163,7 +164,7 @@ cli:
 
 # Utility Rules
 
-REGEX := "localhost:5000.*"
+REGEX := "registry.cn-shanghai.aliyuncs.com/yoyo-team.*"
 
 .PHONY: purge-images
 purge-images: ## Purge images from knative cache by matching $REGEX.
